@@ -92,7 +92,7 @@ async function onSaveOrder(event, shouldPrint) {
     pincode: parsed.pincode,
     addressText: parsed.addressText,
     itemDetails: FIXED_ITEM_NAME,
-    itemQty: parsed.quantity ?? Number(document.getElementById("itemQty").value) || 1,
+    itemQty: parsed.quantity ?? (Number(itemQtySelect.value) || 1),
   };
 
   if (editingId) {

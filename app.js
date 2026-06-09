@@ -309,16 +309,16 @@ function printOrders(orderList) {
           <div class="t ship-title">Ship To</div>
           <div class="name ship-name">${escapeHtml(resolved.customerName)}</div>
           ${
-            resolved.addressText
-              ? `<div class="v ship-address">${escapeHtml(resolved.addressText)}</div>`
-              : ""
-          }
-          ${
             formatPhoneNumbers(resolved.phoneNumber)
               ? `<div class="ship-number-block">
                    <div class="t ship-field-label">Number</div>
                    <div class="v ship-phone">${escapeHtml(formatPhoneNumbers(resolved.phoneNumber))}</div>
                  </div>`
+              : ""
+          }
+          ${
+            resolved.addressText
+              ? `<div class="v ship-address">${escapeHtml(resolved.addressText)}</div>`
               : ""
           }
           ${
@@ -410,22 +410,22 @@ function printOrders(orderList) {
             font-size: 11px;
             margin-top: 8px;
           }
-          .ship-address {
-            font-size: 19px;
-            line-height: 1.25;
-            margin-top: 8px;
-            text-align: left;
-          }
           .ship-number-block {
-            margin-top: 10px;
+            margin-top: 6px;
           }
           .ship-phone {
             font-size: 18px;
             margin-top: 2px;
             font-weight: bold;
           }
+          .ship-address {
+            font-size: 19px;
+            line-height: 1.25;
+            margin-top: 12px;
+            text-align: left;
+          }
           .ship-pincode-block {
-            margin-top: 10px;
+            margin-top: 8px;
           }
           .ship-pincode {
             font-size: 20px;

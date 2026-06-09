@@ -28,16 +28,6 @@ async function init() {
   itemDetailsInput.value = FIXED_ITEM_NAME;
   hydrateFromAddress();
 
-  await initDataStore();
-  orders = getOrders();
-  subscribeOrders((nextOrders) => {
-    orders = nextOrders;
-    renderOrders();
-  });
-
-  ensureSequenceNumbers();
-  renderOrders();
-
   orderForm.addEventListener("submit", (event) => onSaveOrder(event, false));
   saveAndPrintBtn.addEventListener("click", onSaveAndPrint);
   resetBtn.addEventListener("click", resetOrderForm);
@@ -48,6 +38,16 @@ async function init() {
   printSelectedBtn.addEventListener("click", onPrintSelected);
   selectAllOrders.addEventListener("change", onToggleSelectAll);
   searchInput.addEventListener("input", renderOrders);
+
+  await initDataStore();
+  orders = getOrders();
+  subscribeOrders((nextOrders) => {
+    orders = nextOrders;
+    renderOrders();
+  });
+
+  ensureSequenceNumbers();
+  renderOrders();
 }
 
 async function saveOrders() {
@@ -92,7 +92,7 @@ async function onSaveOrder(event, shouldPrint) {
     pincode: parsed.pincode,
     addressText: parsed.addressText,
     itemDetails: FIXED_ITEM_NAME,
-    itemQty: parsed.quantity ?? Number(document.getElementById("itemQty").value),
+    itemQty: parsed.quantity ?? Number(document.getElementById("itemQty").value) || 1,
   };
 
   if (editingId) {
@@ -102,7 +102,13 @@ async function onSaveOrder(event, shouldPrint) {
   }
   resequenceOrders();
 
-  await saveOrders();
+  try {
+    await saveOrders();
+  } catch (error) {
+    console.error("Order save failed:", error);
+    window.alert("Order saved on this device, but cloud sync failed. Check Firebase/Firestore setup.");
+  }
+
   renderOrders();
   resetOrderForm();
 
@@ -112,7 +118,7 @@ async function onSaveOrder(event, shouldPrint) {
 }
 
 function onSaveAndPrint() {
-  onSaveOrder(new Event("submit", { cancelable: true }), true);
+  void onSaveOrder(new Event("submit", { cancelable: true }), true);
 }
 
 function resetOrderForm() {
@@ -184,7 +190,7 @@ function renderOrders() {
         <td>${escapeHtml(formatPhoneNumbers(resolved.phoneNumber)) || "-"}</td>
         <td>${escapeHtml(formatPincode(resolved.pincode)) || "-"}</td>
         <td>${escapeHtml(order.itemDetails)}</td>
-        <td>${order.itemQty}</td>
+        <td>${order.itemQty ?? "-"}</td>
         <td>
           <div class="row-actions">
             <button class="btn btn-secondary" data-action="edit" data-id="${order.id}">Edit</button>
@@ -1246,8 +1252,16 @@ function extractAllPhones(text) {
 }
 
 function ensureSequenceNumbers() {
-  resequenceOrders();
-  saveOrders();
+  let changed = false;
+  const total = orders.length;
+  orders = orders.map((order, index) => {
+    const sequenceNumber = total - index;
+    if (order.sequenceNumber !== sequenceNumber) changed = true;
+    return { ...order, sequenceNumber };
+  });
+  if (changed) {
+    void saveOrders();
+  }
 }
 
 function resequenceOrders() {

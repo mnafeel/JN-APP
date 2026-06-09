@@ -83,6 +83,47 @@ function setSyncStatus(text, ok) {
   node.classList.toggle("sync-off", !ok);
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Firebase connection timed out")), ms);
+    }),
+  ]);
+}
+
+async function connectFirebase() {
+  try {
+    setSyncStatus("Connecting…", false);
+    await withTimeout(migrateLocalToFirebase(), 8000);
+
+    firebaseReady = true;
+
+    db.collection("orders").onSnapshot(
+      (snapshot) => {
+        ordersCache = sortOrders(snapshot.docs.map((doc) => doc.data()));
+        cacheOrdersLocal(ordersCache);
+        notifyOrdersListeners();
+        setSyncStatus("Cloud synced", true);
+      },
+      (error) => {
+        console.error("Firebase orders listener failed:", error);
+        firebaseReady = false;
+        setSyncStatus("Cloud error", false);
+      }
+    );
+
+    const settingsDoc = await db.collection("settings").doc("fromAddress").get();
+    if (settingsDoc.exists) {
+      cacheFromAddressLocal(settingsDoc.data());
+    }
+  } catch (error) {
+    console.error("Firebase connection failed:", error);
+    firebaseReady = false;
+    setSyncStatus("Local only", false);
+  }
+}
+
 async function migrateLocalToFirebase() {
   const localOrders = loadOrdersLocal();
   const existing = await db.collection("orders").limit(1).get();
@@ -100,10 +141,10 @@ async function migrateLocalToFirebase() {
 
 async function initDataStore() {
   ordersCache = sortOrders(loadOrdersLocal());
+  notifyOrdersListeners();
 
   if (!isFirebaseConfigured()) {
     setSyncStatus("Local only", false);
-    notifyOrdersListeners();
     return { firebaseReady: false };
   }
 
@@ -113,34 +154,11 @@ async function initDataStore() {
       tryInitAnalytics();
     }
     db = firebase.firestore();
-    firebaseReady = true;
-    setSyncStatus("Connecting…", false);
-
-    await migrateLocalToFirebase();
-
-    db.collection("orders").onSnapshot(
-      (snapshot) => {
-        ordersCache = sortOrders(snapshot.docs.map((doc) => doc.data()));
-        cacheOrdersLocal(ordersCache);
-        notifyOrdersListeners();
-        setSyncStatus("Cloud synced", true);
-      },
-      (error) => {
-        console.error("Firebase orders listener failed:", error);
-        setSyncStatus("Cloud error", false);
-      }
-    );
-
-    const settingsDoc = await db.collection("settings").doc("fromAddress").get();
-    if (settingsDoc.exists) {
-      cacheFromAddressLocal(settingsDoc.data());
-    }
-
-    return { firebaseReady: true };
+    void connectFirebase();
+    return { firebaseReady: false };
   } catch (error) {
     console.error("Firebase init failed:", error);
     setSyncStatus("Local only", false);
-    notifyOrdersListeners();
     return { firebaseReady: false };
   }
 }
@@ -168,22 +186,28 @@ async function persistOrders(orders) {
 
   setSyncStatus("Saving…", false);
 
-  const snapshot = await db.collection("orders").get();
-  const batch = db.batch();
-  const nextIds = new Set(orders.map((order) => order.id));
+  try {
+    const snapshot = await db.collection("orders").get();
+    const batch = db.batch();
+    const nextIds = new Set(orders.map((order) => order.id));
 
-  snapshot.docs.forEach((doc) => {
-    if (!nextIds.has(doc.id)) {
-      batch.delete(doc.ref);
-    }
-  });
+    snapshot.docs.forEach((doc) => {
+      if (!nextIds.has(doc.id)) {
+        batch.delete(doc.ref);
+      }
+    });
 
-  orders.forEach((order) => {
-    batch.set(db.collection("orders").doc(order.id), order);
-  });
+    orders.forEach((order) => {
+      batch.set(db.collection("orders").doc(order.id), order);
+    });
 
-  await batch.commit();
-  setSyncStatus("Cloud synced", true);
+    await batch.commit();
+    setSyncStatus("Cloud synced", true);
+  } catch (error) {
+    console.error("Firebase order sync failed:", error);
+    setSyncStatus("Cloud error", false);
+    throw error;
+  }
 }
 
 async function persistFromAddress(payload) {

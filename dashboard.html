@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Reports & Summaries</p>
+        <h1>Order Dashboard</h1>
+      </div>
+      <div class="section-head-actions">
+        <a class="btn btn-secondary" href="index.html">Back To Main</a>
+      </div>
+    </header>
+
+    <main class="layout" style="grid-template-columns: 1fr;">
+      <section class="card list-card">
+        <div class="section-head">
+          <h2>Dashboard</h2>
+          <button id="printDailyReportBtn" class="btn btn-primary" type="button">Print 4x4 Report</button>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="metric-card">
+            <p>Total Qty Shipped</p>
+            <h3 id="totalQtyMetric">0</h3>
+          </div>
+          <div class="metric-card">
+            <p>Orders Today</p>
+            <h3 id="ordersTodayMetric">0</h3>
+          </div>
+          <div class="metric-card">
+            <p>Total Orders</p>
+            <h3 id="totalOrdersMetric">0</h3>
+          </div>
+        </div>
+
+        <div class="filters-bar">
+          <label>
+            View
+            <select id="dateFilter">
+              <option value="all">All</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </label>
+          <label>
+            From
+            <input type="date" id="customFromDate" />
+          </label>
+          <label>
+            To
+            <input type="date" id="customToDate" />
+          </label>
+        </div>
+
+        <div class="section-head">
+          <h3>Quantity By Day</h3>
+          <label>
+            Sort
+            <select id="dailyQtySort">
+              <option value="date_desc">Newest Date</option>
+              <option value="date_asc">Oldest Date</option>
+              <option value="qty_desc">Highest Qty</option>
+              <option value="qty_asc">Lowest Qty</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Total Qty</th>
+                <th>Total Orders</th>
+              </tr>
+            </thead>
+            <tbody id="dailyQtyTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="dashboard.js"></script>
+  </body>
+</html>

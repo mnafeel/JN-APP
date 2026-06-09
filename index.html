@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WhatsApp Order Label Manager</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Lightning Order Desk</p>
+        <h1>WhatsApp Label Manager</h1>
+      </div>
+      <div class="section-head-actions">
+        <a class="btn btn-secondary" href="dashboard.html">Open Dashboard</a>
+        <button id="openFromAddress" class="btn btn-secondary">From Address</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="card form-card">
+        <h2>Add New Order</h2>
+        <form id="orderForm">
+          <label>
+            Paste Full Customer Details (Name + Phone + Address)
+            <textarea
+              id="orderInputText"
+              rows="6"
+              placeholder="Paste full customer text from WhatsApp here..."
+              required
+            ></textarea>
+          </label>
+
+          <div class="grid-two">
+            <label>
+              Item Details
+              <input type="text" id="itemDetails" value="Raincoat" readonly />
+            </label>
+            <label>
+              Quantity (saved only)
+              <select id="itemQty" required></select>
+            </label>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-primary" id="submitBtn">Save Order</button>
+            <button type="button" class="btn btn-primary" id="saveAndPrintBtn">Save & Print</button>
+            <button type="button" class="btn btn-secondary" id="resetBtn">Reset</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card list-card">
+        <div class="section-head">
+          <h2>Saved Orders</h2>
+          <div class="section-head-actions">
+            <span id="orderCount" class="pill">0 orders</span>
+            <button id="printSelectedBtn" class="btn btn-secondary" type="button">Print Selected</button>
+          </div>
+        </div>
+        <label>
+          Search Orders (No, Name, Address, Phone, Time)
+          <input type="text" id="searchInput" placeholder="Type to search..." />
+        </label>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAllOrders" /></th>
+                <th>#</th>
+                <th>When</th>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Number</th>
+                <th>Pincode</th>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="fromAddressDialog">
+      <form method="dialog" id="fromAddressForm">
+        <h3>Permanent From Address</h3>
+        <label>
+          <input type="checkbox" id="showFromOnLabel" />
+          Show from/store details on printed label
+        </label>
+        <label>
+          Sender Name
+          <input type="text" id="fromName" />
+        </label>
+        <label>
+          Sender Phone
+          <input type="text" id="fromPhone" />
+        </label>
+        <label>
+          Sender Address
+          <textarea id="fromAddressText" rows="4"></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-secondary" id="closeDialog">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>

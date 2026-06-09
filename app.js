@@ -524,7 +524,7 @@ function onOrderInputChange(event) {
 
 function normalizeTemplateLine(line) {
   return String(line || "")
-    .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Emoji}]/gu, "")
+    .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}]/gu, "")
     .replace(/[\u200d\uFE0F]/g, "")
     .replace(/^[^\p{L}\p{N}]+/u, "")
     .trim();

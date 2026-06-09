@@ -13,6 +13,7 @@
         <h1>WhatsApp Label Manager</h1>
       </div>
       <div class="section-head-actions">
+        <span id="syncStatus" class="sync-status sync-off">Local only</span>
         <a class="btn btn-secondary" href="dashboard.html">Open Dashboard</a>
         <button id="openFromAddress" class="btn btn-secondary">From Address</button>
       </div>
@@ -111,6 +112,11 @@
       </form>
     </dialog>
 
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
+    <script src="firebase-config.js?v=6c225ce"></script>
+    <script src="data-store.js?v=6c225ce"></script>
     <script src="app.js?v=6c225ce"></script>
   </body>
 </html>

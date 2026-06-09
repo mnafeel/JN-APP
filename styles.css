@@ -167,6 +167,29 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sync-status {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--muted);
+}
+
+.sync-status.sync-ok {
+  color: #0f7a45;
+  border-color: #b8ebcf;
+  background: #eefbf3;
+}
+
+.sync-status.sync-off {
+  color: #8a5a00;
+  border-color: #f0dfab;
+  background: #fff9ea;
 }
 
 .dashboard-grid {

@@ -1,5 +1,3 @@
-const ORDER_KEY = "wa_label_orders_v1";
-const FROM_KEY = "wa_label_from_v1";
 const FIXED_ITEM_NAME = "Raincoat";
 const MAX_QTY = 10;
 
@@ -20,15 +18,23 @@ const openFromAddress = document.getElementById("openFromAddress");
 const closeDialog = document.getElementById("closeDialog");
 const fromAddressForm = document.getElementById("fromAddressForm");
 
-let orders = loadOrders();
+let orders = [];
 let editingId = null;
 
 init();
 
-function init() {
+async function init() {
   initializeQuantityOptions();
   itemDetailsInput.value = FIXED_ITEM_NAME;
   hydrateFromAddress();
+
+  await initDataStore();
+  orders = getOrders();
+  subscribeOrders((nextOrders) => {
+    orders = nextOrders;
+    renderOrders();
+  });
+
   ensureSequenceNumbers();
   renderOrders();
 
@@ -44,40 +50,8 @@ function init() {
   searchInput.addEventListener("input", renderOrders);
 }
 
-function loadOrders() {
-  try {
-    return JSON.parse(localStorage.getItem(ORDER_KEY)) || [];
-  } catch (error) {
-    return [];
-  }
-}
-
-function saveOrders() {
-  localStorage.setItem(ORDER_KEY, JSON.stringify(orders));
-}
-
-function loadFromAddress() {
-  try {
-    return (
-      JSON.parse(localStorage.getItem(FROM_KEY)) || {
-        fromName: "Your Store Name",
-        fromPhone: "0000000000",
-        fromAddressText: "Add your permanent sender address from the button above.",
-        showFromOnLabel: false,
-      }
-    );
-  } catch (error) {
-    return {
-      fromName: "Your Store Name",
-      fromPhone: "0000000000",
-      fromAddressText: "Add your permanent sender address from the button above.",
-      showFromOnLabel: false,
-    };
-  }
-}
-
-function saveFromAddress(payload) {
-  localStorage.setItem(FROM_KEY, JSON.stringify(payload));
+async function saveOrders() {
+  await persistOrders(orders);
 }
 
 function hydrateFromAddress() {
@@ -96,11 +70,11 @@ function onSaveFromAddress(event) {
     fromAddressText: document.getElementById("fromAddressText").value.trim(),
     showFromOnLabel: document.getElementById("showFromOnLabel").checked,
   };
-  saveFromAddress(payload);
+  persistFromAddress(payload);
   fromDialog.close();
 }
 
-function onSaveOrder(event, shouldPrint) {
+async function onSaveOrder(event, shouldPrint) {
   event.preventDefault();
   if (!orderForm.reportValidity()) return;
 
@@ -128,7 +102,7 @@ function onSaveOrder(event, shouldPrint) {
   }
   resequenceOrders();
 
-  saveOrders();
+  await saveOrders();
   renderOrders();
   resetOrderForm();
 
@@ -138,8 +112,7 @@ function onSaveOrder(event, shouldPrint) {
 }
 
 function onSaveAndPrint() {
-  const submitEvent = new Event("submit", { cancelable: true });
-  onSaveOrder(submitEvent, true);
+  onSaveOrder(new Event("submit", { cancelable: true }), true);
 }
 
 function resetOrderForm() {
@@ -172,12 +145,13 @@ function onDelete(id) {
 
   orders = orders.filter((order) => order.id !== id);
   resequenceOrders();
-  saveOrders();
-  renderOrders();
+  saveOrders().then(() => {
+    renderOrders();
 
-  if (editingId === id) {
-    resetOrderForm();
-  }
+    if (editingId === id) {
+      resetOrderForm();
+    }
+  });
 }
 
 function formatDate(ts) {

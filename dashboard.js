@@ -1,5 +1,3 @@
-const ORDER_KEY = "wa_label_orders_v1";
-
 const totalQtyMetric = document.getElementById("totalQtyMetric");
 const ordersTodayMetric = document.getElementById("ordersTodayMetric");
 const totalOrdersMetric = document.getElementById("totalOrdersMetric");
@@ -10,25 +8,25 @@ const dailyQtySort = document.getElementById("dailyQtySort");
 const dailyQtyTableBody = document.getElementById("dailyQtyTableBody");
 const printDailyReportBtn = document.getElementById("printDailyReportBtn");
 
-let orders = loadOrders();
+let orders = [];
 
 init();
 
-function init() {
+async function init() {
   dateFilter.addEventListener("change", renderDashboard);
   customFromDate.addEventListener("change", renderDashboard);
   customToDate.addEventListener("change", renderDashboard);
   dailyQtySort.addEventListener("change", renderDashboard);
   printDailyReportBtn.addEventListener("click", onPrintDailyReport);
-  renderDashboard();
-}
 
-function loadOrders() {
-  try {
-    return JSON.parse(localStorage.getItem(ORDER_KEY)) || [];
-  } catch (error) {
-    return [];
-  }
+  await initDataStore();
+  orders = getOrders();
+  subscribeOrders((nextOrders) => {
+    orders = nextOrders;
+    renderDashboard();
+  });
+
+  renderDashboard();
 }
 
 function renderDashboard() {

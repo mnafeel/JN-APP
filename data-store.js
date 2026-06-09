@@ -3,6 +3,7 @@ const FROM_KEY = "wa_label_from_v1";
 
 let firebaseReady = false;
 let db = null;
+let connectPromise = null;
 let ordersCache = [];
 const ordersListeners = new Set();
 
@@ -83,6 +84,20 @@ function setSyncStatus(text, ok) {
   node.classList.toggle("sync-off", !ok);
 }
 
+function getFirebaseErrorMessage(error) {
+  const code = String(error?.code || error?.message || error || "").toLowerCase();
+  if (code.includes("permission-denied") || code.includes("insufficient permissions")) {
+    return "Firestore rules blocked — deploy rules in Firebase Console";
+  }
+  if (code.includes("not-found") || code.includes("does not exist")) {
+    return "Create Firestore database in Firebase Console";
+  }
+  if (code.includes("timed out")) {
+    return "Cloud connection timed out";
+  }
+  return "Cloud error";
+}
+
 function withTimeout(promise, ms) {
   return Promise.race([
     promise,
@@ -90,38 +105,6 @@ function withTimeout(promise, ms) {
       setTimeout(() => reject(new Error("Firebase connection timed out")), ms);
     }),
   ]);
-}
-
-async function connectFirebase() {
-  try {
-    setSyncStatus("Connecting…", false);
-    await withTimeout(migrateLocalToFirebase(), 8000);
-
-    firebaseReady = true;
-
-    db.collection("orders").onSnapshot(
-      (snapshot) => {
-        ordersCache = sortOrders(snapshot.docs.map((doc) => doc.data()));
-        cacheOrdersLocal(ordersCache);
-        notifyOrdersListeners();
-        setSyncStatus("Cloud synced", true);
-      },
-      (error) => {
-        console.error("Firebase orders listener failed:", error);
-        firebaseReady = false;
-        setSyncStatus("Cloud error", false);
-      }
-    );
-
-    const settingsDoc = await db.collection("settings").doc("fromAddress").get();
-    if (settingsDoc.exists) {
-      cacheFromAddressLocal(settingsDoc.data());
-    }
-  } catch (error) {
-    console.error("Firebase connection failed:", error);
-    firebaseReady = false;
-    setSyncStatus("Local only", false);
-  }
 }
 
 async function migrateLocalToFirebase() {
@@ -139,6 +122,74 @@ async function migrateLocalToFirebase() {
   await db.collection("settings").doc("fromAddress").set(localFrom);
 }
 
+async function syncOrdersToFirebase(orders) {
+  const snapshot = await db.collection("orders").get();
+  const batch = db.batch();
+  const nextIds = new Set(orders.map((order) => order.id));
+
+  snapshot.docs.forEach((doc) => {
+    if (!nextIds.has(doc.id)) {
+      batch.delete(doc.ref);
+    }
+  });
+
+  orders.forEach((order) => {
+    batch.set(db.collection("orders").doc(order.id), order);
+  });
+
+  await batch.commit();
+}
+
+async function connectFirebase() {
+  try {
+    setSyncStatus("Connecting…", false);
+    await withTimeout(migrateLocalToFirebase(), 15000);
+
+    firebaseReady = true;
+
+    db.collection("orders").onSnapshot(
+      (snapshot) => {
+        ordersCache = sortOrders(snapshot.docs.map((doc) => doc.data()));
+        cacheOrdersLocal(ordersCache);
+        notifyOrdersListeners();
+        setSyncStatus("Cloud synced", true);
+      },
+      (error) => {
+        console.error("Firebase orders listener failed:", error);
+        firebaseReady = false;
+        setSyncStatus(getFirebaseErrorMessage(error), false);
+      }
+    );
+
+    const settingsDoc = await db.collection("settings").doc("fromAddress").get();
+    if (settingsDoc.exists) {
+      cacheFromAddressLocal(settingsDoc.data());
+    }
+
+    setSyncStatus("Cloud synced", true);
+    return true;
+  } catch (error) {
+    console.error("Firebase connection failed:", error);
+    firebaseReady = false;
+    setSyncStatus(getFirebaseErrorMessage(error), false);
+    throw error;
+  }
+}
+
+function ensureFirebaseConnected() {
+  if (firebaseReady && db) {
+    return Promise.resolve(true);
+  }
+
+  if (!connectPromise) {
+    connectPromise = connectFirebase().finally(() => {
+      connectPromise = null;
+    });
+  }
+
+  return connectPromise;
+}
+
 async function initDataStore() {
   ordersCache = sortOrders(loadOrdersLocal());
   notifyOrdersListeners();
@@ -154,11 +205,11 @@ async function initDataStore() {
       tryInitAnalytics();
     }
     db = firebase.firestore();
-    void connectFirebase();
+    void ensureFirebaseConnected();
     return { firebaseReady: false };
   } catch (error) {
     console.error("Firebase init failed:", error);
-    setSyncStatus("Local only", false);
+    setSyncStatus(getFirebaseErrorMessage(error), false);
     return { firebaseReady: false };
   }
 }
@@ -182,30 +233,17 @@ async function persistOrders(orders) {
   cacheOrdersLocal(ordersCache);
   notifyOrdersListeners();
 
-  if (!firebaseReady || !db) return;
+  if (!db || !isFirebaseConfigured()) return;
 
   setSyncStatus("Saving…", false);
 
   try {
-    const snapshot = await db.collection("orders").get();
-    const batch = db.batch();
-    const nextIds = new Set(orders.map((order) => order.id));
-
-    snapshot.docs.forEach((doc) => {
-      if (!nextIds.has(doc.id)) {
-        batch.delete(doc.ref);
-      }
-    });
-
-    orders.forEach((order) => {
-      batch.set(db.collection("orders").doc(order.id), order);
-    });
-
-    await batch.commit();
+    await ensureFirebaseConnected();
+    await syncOrdersToFirebase(orders);
     setSyncStatus("Cloud synced", true);
   } catch (error) {
     console.error("Firebase order sync failed:", error);
-    setSyncStatus("Cloud error", false);
+    setSyncStatus(getFirebaseErrorMessage(error), false);
     throw error;
   }
 }
@@ -213,7 +251,15 @@ async function persistOrders(orders) {
 async function persistFromAddress(payload) {
   cacheFromAddressLocal(payload);
 
-  if (!firebaseReady || !db) return;
+  if (!db || !isFirebaseConfigured()) return;
 
-  await db.collection("settings").doc("fromAddress").set(payload);
+  try {
+    await ensureFirebaseConnected();
+    await db.collection("settings").doc("fromAddress").set(payload);
+    setSyncStatus("Cloud synced", true);
+  } catch (error) {
+    console.error("Firebase settings sync failed:", error);
+    setSyncStatus(getFirebaseErrorMessage(error), false);
+    throw error;
+  }
 }
